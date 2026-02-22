@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sacolão Digital</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body class="bg-gray-50 min-h-screen pb-24 font-sans">
+
+<div id="app">
+    <header class="bg-green-700 text-white shadow-lg sticky top-0 z-50">
+        <div class="container mx-auto px-4 py-4 flex justify-between items-center">
+            <h1 class="text-xl font-bold flex items-center gap-2">
+                <i class="fas fa-leaf text-green-300"></i> Sacolão Digital
+            </h1>
+            <button @click="toggleAdmin" class="text-xs border border-white px-3 py-1.5 rounded hover:bg-white hover:text-green-700 transition font-bold">
+                {{ isAdmin ? 'Sair do Painel' : 'Acesso Admin' }}
+            </button>
+        </div>
+    </header>
+
+    <div v-if="!isAdmin" class="bg-orange-500 text-white text-center py-2 text-xs font-bold uppercase tracking-widest">
+        Produtos frescos selecionados com carinho 🛒
+    </div>
+
+    <main class="container mx-auto px-4 mt-6">
+        
+        <div v-if="isAdmin" class="mb-6 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 p-4 rounded shadow-sm flex items-center gap-3">
+            <i class="fas fa-lock-open text-2xl text-yellow-600"></i>
+            <div>
+                <p class="font-bold">Painel de Controle</p>
+                <p class="text-sm">Edite os valores abaixo. As alterações são salvas na hora.</p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+            <div v-for="p in produtos" :key="p.id" class="bg-white rounded-2xl shadow-sm border border-gray-100 p-3 md:p-4 flex flex-col hover:shadow-md transition duration-300">
+                
+                <div class="relative overflow-hidden rounded-xl mb-3 aspect-[4/3]">
+                    <img :src="p.img" :alt="p.nome" class="object-cover w-full h-full hover:scale-110 transition duration-500">
+                    <span class="absolute top-2 right-2 bg-white/90 text-green-800 text-[10px] font-bold px-2 py-1 rounded-full uppercase shadow">
+                        {{ p.categoria }}
+                    </span>
+                </div>
+                
+                <h3 class="font-bold text-gray-800 leading-tight">{{ p.nome }}</h3>
+                <p class="text-gray-400 text-[11px] mb-2 uppercase tracking-wide">Preço por {{ p.unidade }}</p>
+                
+                <div v-if="!isAdmin" class="mt-auto pt-2 border-t border-gray-50">
+                    <div class="flex flex-col gap-2">
+                        <span class="text-2xl font-black text-green-600">R$ {{ formatarPreco(p.preco) }}</span>
+                        <button @click="addCarrinho(p)" class="w-full bg-green-50 text-green-700 py-2.5 rounded-xl text-sm font-bold border border-green-200 hover:bg-green-600 hover:text-white hover:border-green-600 transition-all active:scale-95">
+                            <i class="fas fa-cart-plus mr-1"></i> Adicionar
+                        </button>
+                    </div>
+                </div>
+
+                <div v-else class="mt-auto pt-2">
+                    <div class="p-2 bg-yellow-50 rounded-xl border border-yellow-200">
+                        <label class="text-[10px] font-bold text-yellow-700 uppercase flex justify-between">
+                            <span>Novo Preço</span>
+                            <i class="fas fa-edit"></i>
+                        </label>
+                        <div class="flex items-center mt-1">
+                            <span class="text-yellow-700 font-bold mr-1">R$</span>
+                            <input type="number" step="0.01" v-model.number="p.preco" @change="salvarDados"
+                                   class="w-full bg-white border border-yellow-300 rounded p-1.5 font-bold text-lg text-gray-800 outline-none focus:ring-2 focus:ring-yellow-500 transition">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div v-if="carrinho.length > 0 && !isAdmin" class="fixed bottom-0 left-0 right-0 bg-white shadow-[0_-10px_30px_rgba(0,0,0,0.1)] p-4 flex justify-between items-center z-40 border-t border-gray-100">
+        <div class="container mx-auto flex justify-between items-center px-2">
+            <div>
+                <div class="flex items-center gap-2">
+                    <span class="bg-green-100 text-green-800 text-xs font-bold px-2 py-0.5 rounded-full">{{ carrinho.length }} itens</span>
+                </div>
+                <p class="text-2xl font-black text-gray-800 mt-0.5">R$ {{ formatarPreco(totalPedido) }}</p>
+            </div>
+            <button @click="finalizar" class="bg-[#25D366] text-white px-6 md:px-10 py-3.5 rounded-2xl font-bold flex items-center gap-2 shadow-lg hover:bg-green-500 transition-transform hover:scale-105 active:scale-95">
+                <i class="fab fa-whatsapp text-xl"></i> 
+                <span class="hidden md:inline">Enviar Pedido</span>
+                <span class="md:hidden">Pedir</span>
+            </button>
+        </div>
+    </div>
+
+    <footer class="mt-12 py-6 text-center text-xs text-gray-400">
+        <p>Desenvolvido por @ifopprojetos</p>
+    </footer>
+</div>
+
+<script>
+    const { createApp } = Vue;
+
+    // Lista Completa de Produtos
+    const produtosPadrao = [
+        // Frutas
+        { id: 1, nome: 'Banana Prata', preco: 6.99, unidade: 'dúzia', categoria: 'Frutas', img: 'https://images.unsplash.com/photo-1571771894821-ad99024177c6?w=400' },
+        { id: 2, nome: 'Maçã Gala', preco: 9.50, unidade: 'kg', categoria: 'Frutas', img: 'https://images.unsplash.com/photo-1560806887-1e4cd0b6fac6?w=400' },
+        { id: 3, nome: 'Laranja Pera', preco: 4.99, unidade: 'kg', categoria: 'Frutas', img: 'https://images.unsplash.com/photo-1611080626919-7cf5a9dbab5b?w=400' },
+        { id: 4, nome: 'Mamão Formosa', preco: 5.50, unidade: 'kg', categoria: 'Frutas', img: 'https://images.unsplash.com/photo-1517282009859-f000ec3b26af?w=400' },
+        { id: 5, nome: 'Limão Tahiti', preco: 3.99, unidade: 'kg', categoria: 'Frutas', img: 'https://images.unsplash.com/photo-1590502593747-42a996111153?w=400' },
+        { id: 6, nome: 'Morango', preco: 8.00, unidade: 'bandeja', categoria: 'Frutas', img: 'https://images.unsplash.com/photo-1464965911861-746a04b4bca6?w=400' },
+        
+        // Legumes
+        { id: 7, nome: 'Batata Inglesa', preco: 6.50, unidade: 'kg', categoria: 'Legumes', img: 'https://images.unsplash.com/photo-1518977676601-b53f02bad67b?w=400' },
+        { id: 8, nome: 'Tomate Italiano', preco: 7.90, unidade: 'kg', categoria: 'Legumes', img: 'https://images.unsplash.com/photo-1596040033229-a9821ebd058d?w=400' },
+        { id: 9, nome: 'Cebola Branca', preco: 5.20, unidade: 'kg', categoria: 'Legumes', img: 'https://images.unsplash.com/photo-1618512496248-a07fe83aa8cb?w=400' },
+        { id: 10, nome: 'Cenoura', preco: 4.80, unidade: 'kg', categoria: 'Legumes', img: 'https://images.unsplash.com/photo-1598170845058-32b9d6a5da37?w=400' },
+        { id: 11, nome: 'Alho', preco: 25.00, unidade: 'kg', categoria: 'Legumes', img: 'https://images.unsplash.com/photo-1540420773420-3366772f4999?w=400' },
+        { id: 12, nome: 'Pimentão Verde', preco: 8.90, unidade: 'kg', categoria: 'Legumes', img: 'https://images.unsplash.com/photo-1563541175653-06d9b15d0107?w=400' },
+
+        // Verduras e Folhas
+        { id: 13, nome: 'Alface Crespa', preco: 2.50, unidade: 'unidade', categoria: 'Verduras', img: 'https://images.unsplash.com/photo-1622206151226-18ca2c9ab4a1?w=400' },
+        { id: 14, nome: 'Couve Manteiga', preco: 3.00, unidade: 'maço', categoria: 'Verduras', img: 'https://images.unsplash.com/photo-1550989460-0adf9ea622e2?w=400' },
+        { id: 15, nome: 'Cheiro Verde', preco: 2.00, unidade: 'maço', categoria: 'Verduras', img: 'https://images.unsplash.com/photo-1600857544200-b2f666a9a2ec?w=400' },
+        { id: 16, nome: 'Brócolis', preco: 6.50, unidade: 'unidade', categoria: 'Verduras', img: 'https://images.unsplash.com/photo-1459411621453-7b03977f4bfc?w=400' }
+    ];
+
+    createApp({
+        data() {
+            return {
+                produtos: [],
+                carrinho: [],
+                isAdmin: false
+            }
+        },
+        computed: {
+            totalPedido() {
+                return this.carrinho.reduce((acc, item) => acc + item.preco, 0);
+            }
+        },
+        methods: {
+            formatarPreco(valor) {
+                return parseFloat(valor).toFixed(2).replace('.', ',');
+            },
+            carregarDados() {
+                const salvos = localStorage.getItem('sacolao_produtos_v2');
+                if (salvos) {
+                    this.produtos = JSON.parse(salvos);
+                } else {
+                    this.produtos = [...produtosPadrao];
+                    this.salvarDados();
+                }
+            },
+            salvarDados() {
+                localStorage.setItem('sacolao_produtos_v2', JSON.stringify(this.produtos));
+            },
+            toggleAdmin() {
+                if (!this.isAdmin) {
+                    const senha = prompt("Acesso Restrito.\nDigite a senha do administrador:");
+                    if (senha === "BrunoGalvao") {
+                        this.isAdmin = true;
+                        this.carrinho = []; // Limpa o carrinho
+                    } else if (senha !== null) {
+                        alert("Senha incorreta!");
+                    }
+                } else {
+                    this.isAdmin = false;
+                }
+            },
+            addCarrinho(p) {
+                this.carrinho.push(p);
+                // Pequeno feedback visual no console
+                console.log(`${p.nome} adicionado ao carrinho.`);
+            },
+            finalizar() {
+                const celular = "5521999999999"; // COLOQUE SEU NÚMERO AQUI (com DDD, sem espaços)
+                
+                let msg = "🛒 *Novo Pedido - Sacolão Digital*%0A%0A";
+                
+                // Agrupa itens repetidos
+                const contagem = {};
+                this.carrinho.forEach(item => {
+                    if(contagem[item.id]) {
+                        contagem[item.id].qtd++;
+                        contagem[item.id].subtotal += item.preco;
+                    } else {
+                        contagem[item.id] = { nome: item.nome, qtd: 1, subtotal: item.preco };
+                    }
+                });
+
+                for (let id in contagem) {
+                    let i = contagem[id];
+                    msg += `• ${i.qtd}x ${i.nome} - R$ ${this.formatarPreco(i.subtotal)}%0A`;
+                }
+                
+                msg += `%0A💰 *TOTAL: R$ ${this.formatarPreco(this.totalPedido)}*%0A%0A`;
+                msg += "📍 Por favor, confirme a forma de pagamento e o endereço de entrega.";
+
+                window.open(`https://wa.me/${celular}?text=${msg}`, '_blank');
+            }
+        },
+        mounted() {
+            this.carregarDados();
+        }
+    }).mount('#app');
+</script>
+</body>
+</html>
